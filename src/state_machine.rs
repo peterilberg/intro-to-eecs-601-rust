@@ -9,16 +9,12 @@ pub fn run<S, I, O>(
     state_machine: &dyn StateMachine<S, I, O>,
     inputs: &[I],
 ) -> Vec<O> {
-    let mut outputs = Vec::new();
     transduce(
         state_machine,
+        state_machine.get_start_state(),
         inputs,
-        |_state| {},
-        |_i, _input, output, _state| {
-            outputs.push(output);
-        },
-    );
-    outputs
+        |_i, _input, _output, _state| {},
+    )
 }
 
 pub fn trace<S, I, O>(
@@ -30,33 +26,52 @@ where
     I: Display,
     O: Display,
 {
-    let mut outputs = Vec::new();
+    let start_state = state_machine.get_start_state();
+    println!("Start state: {start_state}");
+
     transduce(
         state_machine,
+        state_machine.get_start_state(),
         inputs,
-        |state| {
-            println!("Start state: {state}");
-        },
         |i, input, output, state| {
             print!("{i}: input {input} produces {output}");
             println!(" with new state: {state}");
-            outputs.push(output);
         },
-    );
-    outputs
+    )
 }
 
-fn transduce<S, I, O, FS, FN>(
+pub fn get_trajectory<S, I, O>(
     state_machine: &dyn StateMachine<S, I, O>,
+    start_state: S,
     inputs: &[I],
-    mut start_state_fn: FS,
-    mut next_state_fn: FN,
-) where
-    FS: FnMut(&S),
-    FN: FnMut(usize, &I, O, &S),
+) -> Vec<(usize, I, O, S)>
+where
+    S: Clone,
+    I: Clone,
+    O: Clone,
 {
-    let start_state = state_machine.get_start_state();
-    start_state_fn(&start_state);
+    let mut trajectory = Vec::new();
+    transduce(
+        state_machine,
+        start_state,
+        inputs,
+        |i, input, output, state| {
+            trajectory.push((i, input.clone(), output.clone(), state.clone()));
+        },
+    );
+    trajectory
+}
+
+fn transduce<S, I, O, F>(
+    state_machine: &dyn StateMachine<S, I, O>,
+    start_state: S,
+    inputs: &[I],
+    mut transition: F,
+) -> Vec<O>
+where
+    F: FnMut(usize, &I, &O, &S),
+{
+    let mut outputs = Vec::new();
 
     inputs
         .iter()
@@ -64,7 +79,10 @@ fn transduce<S, I, O, FS, FN>(
         .fold(start_state, |state, (i, input)| {
             let (next_state, output) =
                 state_machine.get_next_state(state, input);
-            next_state_fn(i, input, output, &next_state);
+            transition(i, input, &output, &next_state);
+            outputs.push(output);
             next_state
         });
+
+    outputs
 }
