@@ -1,27 +1,67 @@
+use std::fmt::Display;
+
 trait StateMachine<S, I, O> {
-    fn start(&mut self);
-    fn step(&mut self, input: &I) -> O;
+    fn get_start_state(&self) -> S;
     fn get_next_state(&self, state: S, input: &I) -> (S, O);
-    fn transduce(&mut self, inputs: &[I], verbose: bool) -> Vec<O> {
-        self.start();
-        inputs.iter().map(|i| self.step(i)).collect()
+
+    fn run(&self, inputs: &[I]) -> Vec<O> {
+        let mut outputs = Vec::new();
+        self.transduce(
+            inputs,
+            |_state| {},
+            |_i, _input, output, _state| {
+                outputs.push(output);
+            },
+        );
+        outputs
+    }
+
+    fn trace(&self, inputs: &[I]) -> Vec<O>
+    where
+        S: Display,
+        I: Display,
+        O: Display,
+    {
+        let mut outputs = Vec::new();
+        self.transduce(
+            inputs,
+            |state| {
+                println!("Start state: {state}");
+            },
+            |i, input, output, state| {
+                println!("{i}: input {input} produces {output} with new state: {state}");
+                outputs.push(output);
+            },
+        );
+        outputs
+    }
+
+    fn transduce<FS, FN>(&self, inputs: &[I], mut start_state_fn: FS, mut next_state_fn: FN)
+    where
+        FS: FnMut(&S),
+        FN: FnMut(usize, &I, O, &S),
+    {
+        let start_state = self.get_start_state();
+        start_state_fn(&start_state);
+
+        inputs
+            .iter()
+            .enumerate()
+            .fold(start_state, |state, (i, input)| {
+                let (next_state, output) = self.get_next_state(state, input);
+                next_state_fn(i, input, output, &next_state);
+                next_state
+            });
     }
 }
 
 struct Accumulator<T> {
     start_state: T,
-    state: T,
 }
 
 impl StateMachine<i32, i32, i32> for Accumulator<i32> {
-    fn start(&mut self) {
-        self.state = self.start_state;
-    }
-
-    fn step(&mut self, input: &i32) -> i32 {
-        let (state, output) = self.get_next_state(self.state, input);
-        self.state = state;
-        output
+    fn get_start_state(&self) -> i32 {
+        self.start_state
     }
 
     fn get_next_state(&self, state: i32, input: &i32) -> (i32, i32) {
@@ -30,11 +70,8 @@ impl StateMachine<i32, i32, i32> for Accumulator<i32> {
 }
 
 fn main() {
-    let mut accumulator = Accumulator {
-        start_state: 0,
-        state: 0,
-    };
-    let output = accumulator.transduce(&[100, -3, 4, -123, 10], true);
+    let accumulator = Accumulator { start_state: 0 };
+    let output = accumulator.trace(&[100, -3, 4, -123, 10]);
     println!("Output: {output:?}");
 }
 
