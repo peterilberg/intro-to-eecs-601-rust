@@ -1,2 +1,3 @@
-pub mod accumulator;
+mod accumulator;
 
+pub use accumulator::*;

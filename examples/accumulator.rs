@@ -1,5 +1,5 @@
 use intro_to_ee_and_cs::state_machine::trace;
-use intro_to_ee_and_cs::state_machines::accumulator::Accumulator;
+use intro_to_ee_and_cs::state_machines::Accumulator;
 
 fn main() {
     let accumulator = Accumulator::new(0);
