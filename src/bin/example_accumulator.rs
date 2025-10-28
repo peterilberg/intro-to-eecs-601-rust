@@ -1,8 +1,5 @@
-mod state_machine;
-mod state_machines;
-
-use state_machine::trace;
-use state_machines::accumulator::Accumulator;
+use intro_to_ee_and_cs::state_machine::trace;
+use intro_to_ee_and_cs::state_machines::accumulator::Accumulator;
 
 fn main() {
     let accumulator = Accumulator::new(0);
