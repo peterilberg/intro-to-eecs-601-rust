@@ -1,88 +1,87 @@
 use std::fmt::Display;
 
-pub trait StateMachine<S, I, O> {
+pub trait StateMachine<I, O, S> {
     fn get_start_state(&self) -> S;
-    fn get_next_state(&self, state: S, input: &I) -> (S, O);
+    fn get_next_state(&self, state: &S, input: &I) -> (S, O);
 }
 
-pub fn run<S, I, O>(
-    state_machine: &dyn StateMachine<S, I, O>,
+pub fn run<I, O, S>(
+    state_machine: &dyn StateMachine<I, O, S>,
     inputs: &[I],
 ) -> Vec<O> {
-    transduce(
-        state_machine,
-        state_machine.get_start_state(),
-        inputs,
-        |_i, _input, _output, _state| {},
-    )
+    get_trajectory(state_machine, state_machine.get_start_state(), inputs)
+        .into_iter()
+        .map(|Transition { output, .. }| output)
+        .collect()
 }
 
-pub fn trace<S, I, O>(
-    state_machine: &dyn StateMachine<S, I, O>,
+pub fn trace<I, O, S>(
+    state_machine: &dyn StateMachine<I, O, S>,
     inputs: &[I],
 ) -> Vec<O>
 where
-    S: Display,
     I: Display,
     O: Display,
+    S: Display,
 {
     let start_state = state_machine.get_start_state();
     println!("Start state: {start_state}");
 
-    transduce(
-        state_machine,
-        state_machine.get_start_state(),
-        inputs,
-        |i, input, output, state| {
-            print!("{i}: input {input} produces {output}");
-            println!(" with new state: {state}");
-        },
-    )
+    get_trajectory(state_machine, start_state, inputs)
+        .into_iter()
+        .map(
+            |Transition {
+                 i,
+                 input,
+                 output,
+                 new_state,
+             }| {
+                print!("{i}: input {input} produces {output}");
+                println!(" with new state: {new_state}");
+                output
+            },
+        )
+        .collect()
 }
 
-pub fn get_trajectory<S, I, O>(
-    state_machine: &dyn StateMachine<S, I, O>,
-    start_state: S,
-    inputs: &[I],
-) -> Vec<(usize, I, O, S)>
+#[derive(Debug)]
+pub struct Transition<'i, I, O, S> {
+    pub i: usize,
+    pub input: &'i I,
+    pub output: O,
+    pub new_state: S,
+}
+
+impl<'i, I, O, S> PartialEq for Transition<'i, I, O, S>
 where
-    S: Clone,
-    I: Clone,
-    O: Clone,
+    I: PartialEq,
+    O: PartialEq,
+    S: PartialEq,
 {
+    fn eq(&self, other: &Self) -> bool {
+        self.i == other.i
+            && *self.input == *other.input
+            && self.output == other.output
+            && self.new_state == other.new_state
+    }
+}
+
+pub fn get_trajectory<'i, I, O, S>(
+    state_machine: &dyn StateMachine<I, O, S>,
+    start_state: S,
+    inputs: &'i [I],
+) -> Vec<Transition<'i, I, O, S>> {
     let mut trajectory = Vec::new();
-    transduce(
-        state_machine,
-        start_state,
-        inputs,
-        |i, input, output, state| {
-            trajectory.push((i, input.clone(), output.clone(), state.clone()));
-        },
-    );
-    trajectory
-}
-
-fn transduce<S, I, O, F>(
-    state_machine: &dyn StateMachine<S, I, O>,
-    start_state: S,
-    inputs: &[I],
-    mut transition: F,
-) -> Vec<O>
-where
-    F: FnMut(usize, &I, &O, &S),
-{
-    let mut outputs = Vec::new();
-
-    inputs
-        .iter()
-        .enumerate()
-        .fold(start_state, |state, (i, input)| {
-            let (next_state, output) =
-                state_machine.get_next_state(state, input);
-            transition(i, input, &output, &next_state);
-            outputs.push(output);
-            next_state
+    let mut state = &start_state;
+    for (i, input) in inputs.iter().enumerate() {
+        let (new_state, output) = state_machine.get_next_state(state, input);
+        trajectory.push(Transition {
+            i,
+            input,
+            output,
+            new_state,
         });
-
-    outputs
+        state = &trajectory.last().unwrap().new_state;
+    }
+    trajectory
 }

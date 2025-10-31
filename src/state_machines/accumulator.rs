@@ -15,7 +15,7 @@ impl StateMachine<i32, i32, i32> for Accumulator<i32> {
         self.initial_value
     }
 
-    fn get_next_state(&self, state: i32, input: &i32) -> (i32, i32) {
+    fn get_next_state(&self, state: &i32, input: &i32) -> (i32, i32) {
         (state + input, state + input)
     }
 }
@@ -23,7 +23,7 @@ impl StateMachine<i32, i32, i32> for Accumulator<i32> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state_machine::{get_trajectory, run};
+    use crate::state_machine::{Transition, get_trajectory, run};
 
     #[test]
     fn run_with_example_inputs() {
@@ -42,11 +42,36 @@ mod tests {
         assert_eq!(
             trajectory,
             [
-                (0, 100, 100, 100),
-                (1, -3, 97, 97),
-                (2, 4, 101, 101),
-                (3, -123, -22, -22),
-                (4, 10, -12, -12),
+                Transition {
+                    i: 0,
+                    input: &inputs[0],
+                    output: 100,
+                    new_state: 100
+                },
+                Transition {
+                    i: 1,
+                    input: &inputs[1],
+                    output: 97,
+                    new_state: 97
+                },
+                Transition {
+                    i: 2,
+                    input: &inputs[2],
+                    output: 101,
+                    new_state: 101
+                },
+                Transition {
+                    i: 3,
+                    input: &inputs[3],
+                    output: -22,
+                    new_state: -22
+                },
+                Transition {
+                    i: 4,
+                    input: &inputs[4],
+                    output: -12,
+                    new_state: -12
+                },
             ]
         );
     }
