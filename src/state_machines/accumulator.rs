@@ -1,4 +1,5 @@
 use crate::state_machine::StateMachine;
+use std::ops::Add;
 
 pub struct Accumulator<T> {
     initial_value: T,
@@ -10,12 +11,16 @@ impl<T> Accumulator<T> {
     }
 }
 
-impl StateMachine<i32, i32, i32> for Accumulator<i32> {
-    fn get_start_state(&self) -> i32 {
-        self.initial_value
+impl<T> StateMachine<T, T, T> for Accumulator<T>
+where
+    T: Clone,
+    for<'a> &'a T: Add<&'a T, Output = T>,
+{
+    fn get_start_state(&self) -> T {
+        self.initial_value.clone()
     }
 
-    fn get_next_state(&self, state: &i32, input: &i32) -> (i32, i32) {
+    fn get_next_state(&self, state: &T, input: &T) -> (T, T) {
         (state + input, state + input)
     }
 }
