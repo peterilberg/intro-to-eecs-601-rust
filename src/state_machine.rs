@@ -8,40 +8,29 @@ pub trait StateMachine<I, O, S> {
 pub fn run<I, O, S>(
     state_machine: &dyn StateMachine<I, O, S>,
     inputs: &[I],
-) -> Vec<O> {
-    get_trajectory(state_machine, state_machine.get_start_state(), inputs)
-        .into_iter()
-        .map(|Transition { output, .. }| output)
-        .collect()
+) -> impl Iterator<Item = O> {
+    let mut stepper = Stepper::new(state_machine);
+    inputs.iter().map(move |input| stepper.step(input))
 }
 
 pub fn trace<I, O, S>(
     state_machine: &dyn StateMachine<I, O, S>,
     inputs: &[I],
-) -> Vec<O>
+) -> impl Iterator<Item = O>
 where
     I: Display,
     O: Display,
     S: Display,
 {
-    let start_state = state_machine.get_start_state();
-    println!("Start state: {start_state}");
+    let mut stepper = Stepper::new(state_machine);
+    println!("Start state: {}", stepper.current_state);
 
-    get_trajectory(state_machine, start_state, inputs)
-        .into_iter()
-        .map(
-            |Transition {
-                 i,
-                 input,
-                 output,
-                 new_state,
-             }| {
-                print!("{i}: input {input} produces {output}");
-                println!(" with new state: {new_state}");
-                output
-            },
-        )
-        .collect()
+    inputs.iter().enumerate().map(move |(i, input)| {
+        let output = stepper.step(input);
+        print!("{i}: input {input} produces {output}");
+        println!(" with new state: {}", stepper.current_state);
+        output
+    })
 }
 
 #[derive(Debug)]
@@ -68,20 +57,41 @@ where
 
 pub fn get_trajectory<'i, I, O, S>(
     state_machine: &dyn StateMachine<I, O, S>,
-    start_state: S,
     inputs: &'i [I],
-) -> Vec<Transition<'i, I, O, S>> {
-    let mut trajectory = Vec::new();
-    let mut state = &start_state;
-    for (i, input) in inputs.iter().enumerate() {
-        let (new_state, output) = state_machine.get_next_state(state, input);
-        trajectory.push(Transition {
+) -> impl Iterator<Item = Transition<'i, I, O, S>>
+where
+    S: Clone,
+{
+    let mut stepper = Stepper::new(state_machine);
+    inputs.iter().enumerate().map(move |(i, input)| {
+        let output = stepper.step(input);
+        Transition {
             i,
             input,
             output,
-            new_state,
-        });
-        state = &trajectory.last().unwrap().new_state;
+            new_state: stepper.current_state.clone(),
+        }
+    })
+}
+
+struct Stepper<'m, I, O, S> {
+    state_machine: &'m dyn StateMachine<I, O, S>,
+    current_state: S,
+}
+
+impl<'m, I, O, S> Stepper<'m, I, O, S> {
+    fn new(state_machine: &'m dyn StateMachine<I, O, S>) -> Self {
+        Stepper {
+            state_machine,
+            current_state: state_machine.get_start_state(),
+        }
     }
-    trajectory
+
+    fn step(&mut self, input: &I) -> O {
+        let (new_state, output) = self
+            .state_machine
+            .get_next_state(&self.current_state, input);
+        self.current_state = new_state;
+        output
+    }
 }

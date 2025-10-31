@@ -34,16 +34,15 @@ mod tests {
     fn run_with_example_inputs() {
         let accumulator = Accumulator::new(0);
         let inputs = &[100, -3, 4, -123, 10];
-        let output = run(&accumulator, inputs);
+        let output: Vec<_> = run(&accumulator, inputs).collect();
         assert_eq!(output, [100, 97, 101, -22, -12]);
     }
 
     #[test]
     fn get_trajectory_for_example_inputs() {
         let accumulator = Accumulator::new(0);
-        let start_state = accumulator.get_start_state();
         let inputs = &[100, -3, 4, -123, 10];
-        let trajectory = get_trajectory(&accumulator, start_state, inputs);
+        let trajectory: Vec<_> = get_trajectory(&accumulator, inputs).collect();
         assert_eq!(
             trajectory,
             [
