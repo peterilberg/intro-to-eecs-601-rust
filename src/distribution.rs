@@ -35,8 +35,8 @@ where
         }
     }
 
-    pub fn probability(&self, key: &Event) -> f64 {
-        self.distribution.get(key).copied().unwrap_or(0.0)
+    pub fn probability(&self, event: &Event) -> f64 {
+        self.distribution.get(event).copied().unwrap_or(0.0)
     }
 
     pub fn support(&self) -> impl Iterator<Item = &Event> {
@@ -56,26 +56,27 @@ where
         self.support().last().unwrap()
     }
 
-    pub fn join<NewEvent>(
+    pub fn join<AnotherEvent>(
         self,
-        conditional_distribution: ConditionalDistribution<Event, NewEvent>,
-    ) -> DiscreteDistribution<(Event, NewEvent)>
+        conditional_distribution: ConditionalDistribution<Event, AnotherEvent>,
+    ) -> DiscreteDistribution<(Event, AnotherEvent)>
     where
-        NewEvent: Copy + Eq + Hash,
+        AnotherEvent: Copy + Eq + Hash,
     {
-        let joined_events = conditional_distribution
-            .distribution
-            .into_iter()
-            .flat_map(|(condition, dependent_distribution)| {
-                let probability = self.probability(&condition);
-                dependent_distribution.distribution.into_iter().map(
-                    move |(event, conditional_probability)| {
-                        (
-                            (condition, event),
-                            (probability * conditional_probability),
-                        )
-                    },
-                )
+        let joined_events = self
+            .support()
+            .flat_map(|condition| {
+                let probability = self.probability(condition);
+                let distribution = conditional_distribution.when(condition)?;
+                Some(((condition, probability), distribution))
+            })
+            .flat_map(|((condition, probability), distribution)| {
+                distribution.support().map(move |event| {
+                    (
+                        (*condition, *event),
+                        (probability * distribution.probability(event)),
+                    )
+                })
             });
         DiscreteDistribution::from_iter(joined_events)
     }
@@ -96,23 +97,55 @@ where
 
         DiscreteDistribution::from_events(distribution)
     }
+
+    pub fn condition(self, condition: impl FnMut(&&Event) -> bool) -> Self {
+        DiscreteDistribution::from_iter(
+            self.support()
+                .filter(condition)
+                .map(|event| (*event, self.probability(event))),
+        )
+    }
+
+    pub fn bayes<AnotherEvent>(
+        self,
+        conditional_distribution: ConditionalDistribution<Event, AnotherEvent>,
+        evidence: &AnotherEvent,
+    ) -> DiscreteDistribution<Event>
+    where
+        AnotherEvent: Copy + Eq + Hash,
+    {
+        self.join(conditional_distribution)
+            .condition(|(_, another_event)| another_event == evidence)
+            .marginalize(|(event, _)| event)
+    }
+
+    pub fn total_probability<AnotherEvent>(
+        self,
+        conditional_distribution: ConditionalDistribution<Event, AnotherEvent>,
+    ) -> DiscreteDistribution<AnotherEvent>
+    where
+        AnotherEvent: Copy + Eq + Hash,
+    {
+        self.join(conditional_distribution)
+            .marginalize(|(_, another_event)| another_event)
+    }
 }
 
-pub struct ConditionalDistribution<Condition, Event>
+pub struct ConditionalDistribution<Given, Event>
 where
-    Condition: Eq + Hash,
+    Given: Eq + Hash,
     Event: Copy + Eq + Hash,
 {
-    distribution: HashMap<Condition, DiscreteDistribution<Event>>,
+    distribution: HashMap<Given, DiscreteDistribution<Event>>,
 }
 
-impl<Condition, Event> ConditionalDistribution<Condition, Event>
+impl<Given, Event> ConditionalDistribution<Given, Event>
 where
-    Condition: Eq + Hash,
+    Given: Eq + Hash,
     Event: Copy + Eq + Hash,
 {
     fn from_conditional(
-        conditional: HashMap<Condition, DiscreteDistribution<Event>>,
+        conditional: HashMap<Given, DiscreteDistribution<Event>>,
     ) -> Self {
         ConditionalDistribution {
             distribution: conditional,
@@ -121,7 +154,7 @@ where
 
     pub fn when(
         &self,
-        condition: &Condition,
+        condition: &Given,
     ) -> Option<&DiscreteDistribution<Event>> {
         self.distribution.get(condition)
     }
@@ -161,44 +194,44 @@ where
     }
 }
 
-impl<Condition, Event, const N: usize>
-    From<[(Condition, DiscreteDistribution<Event>); N]>
-    for ConditionalDistribution<Condition, Event>
+impl<Given, Event, const N: usize>
+    From<[(Given, DiscreteDistribution<Event>); N]>
+    for ConditionalDistribution<Given, Event>
 where
-    Condition: Eq + Hash,
+    Given: Eq + Hash,
     Event: Copy + Eq + Hash,
 {
     fn from(
-        conditional_events: [(Condition, DiscreteDistribution<Event>); N],
+        conditional_events: [(Given, DiscreteDistribution<Event>); N],
     ) -> Self {
         let conditional_events = HashMap::from(conditional_events);
         ConditionalDistribution::from_conditional(conditional_events)
     }
 }
 
-impl<Condition, Event> From<Vec<(Condition, DiscreteDistribution<Event>)>>
-    for ConditionalDistribution<Condition, Event>
+impl<Given, Event> From<Vec<(Given, DiscreteDistribution<Event>)>>
+    for ConditionalDistribution<Given, Event>
 where
-    Condition: Eq + Hash,
+    Given: Eq + Hash,
     Event: Copy + Eq + Hash,
 {
     fn from(
-        conditional_events: Vec<(Condition, DiscreteDistribution<Event>)>,
+        conditional_events: Vec<(Given, DiscreteDistribution<Event>)>,
     ) -> Self {
         let conditional_events = HashMap::from_iter(conditional_events);
         ConditionalDistribution::from_conditional(conditional_events)
     }
 }
 
-impl<Condition, Event> FromIterator<(Condition, DiscreteDistribution<Event>)>
-    for ConditionalDistribution<Condition, Event>
+impl<Given, Event> FromIterator<(Given, DiscreteDistribution<Event>)>
+    for ConditionalDistribution<Given, Event>
 where
-    Condition: Eq + Hash,
+    Given: Eq + Hash,
     Event: Copy + Eq + Hash,
 {
     fn from_iter<Iterator>(events: Iterator) -> Self
     where
-        Iterator: IntoIterator<Item = (Condition, DiscreteDistribution<Event>)>,
+        Iterator: IntoIterator<Item = (Given, DiscreteDistribution<Event>)>,
     {
         let events = HashMap::from_iter(events);
         ConditionalDistribution::from_conditional(events)
