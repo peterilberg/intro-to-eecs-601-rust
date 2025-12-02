@@ -3,6 +3,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::hash::Hash;
 
+#[derive(Debug)]
 pub struct DiscreteDistribution<Event>
 where
     Event: Copy + Eq + Hash,
@@ -163,5 +164,151 @@ where
     {
         let events = HashMap::from_iter(events);
         DiscreteDistribution::from_events(events)
+    }
+}
+
+impl<Event> PartialEq for DiscreteDistribution<Event>
+where
+    Event: Copy + Eq + Hash + Ord,
+{
+    fn eq(&self, other: &Self) -> bool {
+        let mut distribution1: Vec<_> = self.distribution.iter().collect();
+        let mut distribution2: Vec<_> = other.distribution.iter().collect();
+        distribution1.sort_by_key(|(event, _)| *event);
+        distribution2.sort_by_key(|(event, _)| *event);
+        distribution1.iter().zip(distribution2.iter()).all(
+            |((event1, probability1), (event2, probability2))| {
+                **event1 == **event2
+                    && (**probability1 - **probability2).abs() < 0.001
+            },
+        )
+    }
+}
+
+impl<Event> Eq for DiscreteDistribution<Event> where
+    Event: Copy + Eq + Hash + Ord
+{
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn support_of_distribution_a() {
+        let d_a = distribution_a();
+        let mut support: Vec<_> = d_a.support().collect();
+        support.sort();
+        assert_eq!(support, [&"a1", &"a2"]);
+    }
+
+    #[test]
+    fn probability_of_events_in_distribution_a() {
+        let d_a = distribution_a();
+        assert_eq!(d_a.probability(&"a1"), 0.9);
+        assert_eq!(d_a.probability(&"a2"), 0.1);
+    }
+
+    #[test]
+    fn draw_from_distribution_a() {
+        let d_a = distribution_a();
+        let mut results = HashMap::new();
+        for _ in 1..=100 {
+            let event = *d_a.draw();
+            *results.entry(event).or_insert(0) += 1;
+        }
+        assert!(results["a1"] > results["a2"]);
+    }
+
+    #[test]
+    fn join_distributions() {
+        assert_eq!(
+            distribution_a_and_b(),
+            DiscreteDistribution::from([
+                (("a1", "b1"), 0.63),
+                (("a1", "b2"), 0.27),
+                (("a2", "b1"), 0.02),
+                (("a2", "b2"), 0.08),
+            ])
+        )
+    }
+
+    #[test]
+    fn marginalize_distribution_without_a() {
+        assert_eq!(
+            distribution_a_and_b().marginalize(|(_, b)| b),
+            DiscreteDistribution::from([("b1", 0.65), ("b2", 0.35),])
+        )
+    }
+
+    #[test]
+    fn marginalize_distribution_without_b() {
+        assert_eq!(
+            distribution_a_and_b().marginalize(|(a, _)| a),
+            DiscreteDistribution::from([("a1", 0.90), ("a2", 0.10),])
+        )
+    }
+
+    #[test]
+    fn conditional_distribution_to_b1() {
+        assert_eq!(
+            distribution_a_and_b()
+                .condition(|(_, b)| b == &"b1")
+                .marginalize(|(a, _)| a),
+            DiscreteDistribution::from([("a1", 0.97), ("a2", 0.03),])
+        )
+    }
+
+    #[test]
+    fn bayesian_evidence_for_positive_test() {
+        assert_eq!(
+            distribution_disease()
+                .bayes(distribution_test_given_disease(), &true),
+            DiscreteDistribution::from([(true, 0.497), (false, 0.502),])
+        )
+    }
+
+    #[test]
+    fn total_probability() {
+        assert_eq!(
+            distribution_disease()
+                .total_probability(distribution_test_given_disease()),
+            DiscreteDistribution::from([(true, 0.002), (false, 0.998),])
+        )
+    }
+
+    fn distribution_a() -> DiscreteDistribution<&'static str> {
+        DiscreteDistribution::from([("a1", 0.9), ("a2", 0.1)])
+    }
+
+    fn distribution_b_given_a()
+    -> ConditionalDistribution<&'static str, &'static str> {
+        ConditionalDistribution::from([
+            ("a1", DiscreteDistribution::from([("b1", 0.7), ("b2", 0.3)])),
+            ("a2", DiscreteDistribution::from([("b1", 0.2), ("b2", 0.8)])),
+        ])
+    }
+
+    fn distribution_a_and_b()
+    -> DiscreteDistribution<(&'static str, &'static str)> {
+        distribution_a().join(distribution_b_given_a())
+    }
+
+    fn distribution_disease() -> DiscreteDistribution<bool> {
+        DiscreteDistribution::from([(true, 0.001), (false, 0.999)])
+    }
+
+    fn distribution_test_given_disease() -> ConditionalDistribution<bool, bool>
+    {
+        ConditionalDistribution::from([
+            (
+                true,
+                DiscreteDistribution::from([(true, 0.990), (false, 0.010)]),
+            ),
+            (
+                false,
+                DiscreteDistribution::from([(true, 0.001), (false, 0.999)]),
+            ),
+        ])
     }
 }

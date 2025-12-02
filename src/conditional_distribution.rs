@@ -74,3 +74,33 @@ where
         ConditionalDistribution::from_conditional(events)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn distribution_for_event_a1() {
+        let expected = DiscreteDistribution::from([("b1", 0.7), ("b2", 0.3)]);
+        assert_eq!(distribution_b_given_a().when(&"a1"), Some(&expected));
+    }
+
+    #[test]
+    fn distribution_for_event_a2() {
+        let expected = DiscreteDistribution::from([("b1", 0.2), ("b2", 0.8)]);
+        assert_eq!(distribution_b_given_a().when(&"a2"), Some(&expected));
+    }
+
+    #[test]
+    fn distribution_for_event_a3() {
+        assert_eq!(distribution_b_given_a().when(&"a3"), None);
+    }
+
+    fn distribution_b_given_a()
+    -> ConditionalDistribution<&'static str, &'static str> {
+        ConditionalDistribution::from([
+            ("a1", DiscreteDistribution::from([("b1", 0.7), ("b2", 0.3)])),
+            ("a2", DiscreteDistribution::from([("b1", 0.2), ("b2", 0.8)])),
+        ])
+    }
+}
