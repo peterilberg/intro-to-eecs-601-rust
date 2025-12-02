@@ -23,11 +23,8 @@ where
         }
     }
 
-    pub fn when(
-        &self,
-        condition: &Given,
-    ) -> Option<&DiscreteDistribution<Event>> {
-        self.distribution.get(condition)
+    pub fn when(&self, condition: &Given) -> &DiscreteDistribution<Event> {
+        &self.distribution[condition]
     }
 }
 
@@ -82,18 +79,19 @@ mod tests {
     #[test]
     fn distribution_for_event_a1() {
         let expected = DiscreteDistribution::from([("b1", 0.7), ("b2", 0.3)]);
-        assert_eq!(distribution_b_given_a().when(&"a1"), Some(&expected));
+        assert_eq!(distribution_b_given_a().when(&"a1"), &expected);
     }
 
     #[test]
     fn distribution_for_event_a2() {
         let expected = DiscreteDistribution::from([("b1", 0.2), ("b2", 0.8)]);
-        assert_eq!(distribution_b_given_a().when(&"a2"), Some(&expected));
+        assert_eq!(distribution_b_given_a().when(&"a2"), &expected);
     }
 
     #[test]
+    #[should_panic]
     fn distribution_for_event_a3() {
-        assert_eq!(distribution_b_given_a().when(&"a3"), None);
+        distribution_b_given_a().when(&"a3");
     }
 
     fn distribution_b_given_a()

@@ -1,15 +1,14 @@
 use intro_to_ee_and_cs::conditional_distribution::ConditionalDistribution;
 use intro_to_ee_and_cs::discrete_distribution::DiscreteDistribution;
-use intro_to_ee_and_cs::state_machine::StateMachine;
 use intro_to_ee_and_cs::state_machines::Stochastic;
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum State {
     Good,
     Bad,
 }
 
-#[derive(Clone, Copy, Eq, Hash, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Input {
     Copy,
 }
@@ -21,7 +20,7 @@ pub enum Output {
     Black,
 }
 
-pub fn copy_machine() -> impl StateMachine<Input, Output, State> {
+pub fn copy_machine() -> Stochastic<Input, Output, State> {
     let initial_state =
         DiscreteDistribution::from([(State::Good, 0.9), (State::Bad, 0.1)]);
 

@@ -3,7 +3,7 @@ use rand::Rng;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DiscreteDistribution<Event>
 where
     Event: Copy + Eq + Hash,
@@ -59,18 +59,18 @@ where
     }
 
     pub fn join<AnotherEvent>(
-        self,
-        conditional_distribution: ConditionalDistribution<Event, AnotherEvent>,
+        &self,
+        conditional_distribution: &ConditionalDistribution<Event, AnotherEvent>,
     ) -> DiscreteDistribution<(Event, AnotherEvent)>
     where
         AnotherEvent: Copy + Eq + Hash,
     {
         let joined_events = self
             .support()
-            .flat_map(|condition| {
+            .map(|condition| {
                 let probability = self.probability(condition);
-                let distribution = conditional_distribution.when(condition)?;
-                Some(((condition, probability), distribution))
+                let distribution = conditional_distribution.when(condition);
+                ((condition, probability), distribution)
             })
             .flat_map(|((condition, probability), distribution)| {
                 distribution.support().map(move |event| {
@@ -84,14 +84,14 @@ where
     }
 
     pub fn marginalize<NewEvent>(
-        self,
-        convert_event: impl Fn(Event) -> NewEvent,
+        &self,
+        convert_event: impl Fn(&Event) -> NewEvent,
     ) -> DiscreteDistribution<NewEvent>
     where
         NewEvent: Copy + Eq + Hash,
     {
         let mut distribution = HashMap::new();
-        for (old_event, probability) in self.distribution {
+        for (old_event, probability) in self.distribution.iter() {
             let new_event = convert_event(old_event);
             let entry = distribution.entry(new_event).or_insert(0.0);
             *entry += probability;
@@ -100,7 +100,7 @@ where
         DiscreteDistribution::from_events(distribution)
     }
 
-    pub fn condition(self, condition: impl FnMut(&&Event) -> bool) -> Self {
+    pub fn condition(&self, condition: impl FnMut(&&Event) -> bool) -> Self {
         DiscreteDistribution::from_iter(
             self.support()
                 .filter(condition)
@@ -109,8 +109,8 @@ where
     }
 
     pub fn bayes<AnotherEvent>(
-        self,
-        conditional_distribution: ConditionalDistribution<Event, AnotherEvent>,
+        &self,
+        conditional_distribution: &ConditionalDistribution<Event, AnotherEvent>,
         evidence: &AnotherEvent,
     ) -> DiscreteDistribution<Event>
     where
@@ -118,18 +118,18 @@ where
     {
         self.join(conditional_distribution)
             .condition(|(_, another_event)| another_event == evidence)
-            .marginalize(|(event, _)| event)
+            .marginalize(|(event, _)| *event)
     }
 
     pub fn total_probability<AnotherEvent>(
-        self,
-        conditional_distribution: ConditionalDistribution<Event, AnotherEvent>,
+        &self,
+        conditional_distribution: &ConditionalDistribution<Event, AnotherEvent>,
     ) -> DiscreteDistribution<AnotherEvent>
     where
         AnotherEvent: Copy + Eq + Hash,
     {
         self.join(conditional_distribution)
-            .marginalize(|(_, another_event)| another_event)
+            .marginalize(|(_, another_event)| *another_event)
     }
 }
 
@@ -236,7 +236,7 @@ mod tests {
     #[test]
     fn marginalize_distribution_without_a() {
         assert_eq!(
-            distribution_a_and_b().marginalize(|(_, b)| b),
+            distribution_a_and_b().marginalize(|(_, b)| *b),
             DiscreteDistribution::from([("b1", 0.65), ("b2", 0.35),])
         )
     }
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn marginalize_distribution_without_b() {
         assert_eq!(
-            distribution_a_and_b().marginalize(|(a, _)| a),
+            distribution_a_and_b().marginalize(|(a, _)| *a),
             DiscreteDistribution::from([("a1", 0.90), ("a2", 0.10),])
         )
     }
@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(
             distribution_a_and_b()
                 .condition(|(_, b)| b == &"b1")
-                .marginalize(|(a, _)| a),
+                .marginalize(|(a, _)| *a),
             DiscreteDistribution::from([("a1", 0.97), ("a2", 0.03),])
         )
     }
@@ -263,7 +263,7 @@ mod tests {
     fn bayesian_evidence_for_positive_test() {
         assert_eq!(
             distribution_disease()
-                .bayes(distribution_test_given_disease(), &true),
+                .bayes(&distribution_test_given_disease(), &true),
             DiscreteDistribution::from([(true, 0.497), (false, 0.502),])
         )
     }
@@ -272,7 +272,7 @@ mod tests {
     fn total_probability() {
         assert_eq!(
             distribution_disease()
-                .total_probability(distribution_test_given_disease()),
+                .total_probability(&distribution_test_given_disease()),
             DiscreteDistribution::from([(true, 0.002), (false, 0.998),])
         )
     }
@@ -291,7 +291,7 @@ mod tests {
 
     fn distribution_a_and_b()
     -> DiscreteDistribution<(&'static str, &'static str)> {
-        distribution_a().join(distribution_b_given_a())
+        distribution_a().join(&distribution_b_given_a())
     }
 
     fn distribution_disease() -> DiscreteDistribution<bool> {
