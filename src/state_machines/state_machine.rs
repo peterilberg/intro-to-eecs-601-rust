@@ -1,12 +1,22 @@
 use std::fmt::Display;
 
-pub trait StateMachine<I, O, S> {
-    fn get_start_state(&self) -> S;
-    fn get_next_state(&self, state: &S, input: &I) -> (S, O);
+pub trait StateMachine {
+    type Input;
+    type Output;
+    type State;
+
+    fn get_start_state(&self) -> Self::State;
+    fn get_next_state(
+        &self,
+        state: &Self::State,
+        input: &Self::Input,
+    ) -> (Self::State, Self::Output);
 }
 
+type Machine<I, O, S> = dyn StateMachine<Input = I, Output = O, State = S>;
+
 pub fn run<I, O, S>(
-    state_machine: &dyn StateMachine<I, O, S>,
+    state_machine: &Machine<I, O, S>,
     inputs: &[I],
 ) -> impl Iterator<Item = O> {
     let mut stepper = Stepper::new(state_machine);
@@ -14,7 +24,7 @@ pub fn run<I, O, S>(
 }
 
 pub fn trace<I, O, S>(
-    state_machine: &dyn StateMachine<I, O, S>,
+    state_machine: &Machine<I, O, S>,
     inputs: &[I],
 ) -> impl Iterator<Item = O>
 where
@@ -56,7 +66,7 @@ where
 }
 
 pub fn get_trajectory<'i, I, O, S>(
-    state_machine: &dyn StateMachine<I, O, S>,
+    state_machine: &Machine<I, O, S>,
     inputs: &'i [I],
 ) -> impl Iterator<Item = Transition<'i, I, O, S>>
 where
@@ -75,12 +85,12 @@ where
 }
 
 struct Stepper<'m, I, O, S> {
-    state_machine: &'m dyn StateMachine<I, O, S>,
+    state_machine: &'m Machine<I, O, S>,
     current_state: S,
 }
 
 impl<'m, I, O, S> Stepper<'m, I, O, S> {
-    fn new(state_machine: &'m dyn StateMachine<I, O, S>) -> Self {
+    fn new(state_machine: &'m Machine<I, O, S>) -> Self {
         Stepper {
             state_machine,
             current_state: state_machine.get_start_state(),

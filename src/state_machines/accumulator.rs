@@ -1,4 +1,4 @@
-use crate::state_machine::StateMachine;
+use crate::state_machines::StateMachine;
 use std::ops::Add;
 
 pub struct Accumulator<T> {
@@ -11,16 +11,24 @@ impl<T> Accumulator<T> {
     }
 }
 
-impl<T> StateMachine<T, T, T> for Accumulator<T>
+impl<T> StateMachine for Accumulator<T>
 where
     T: Clone,
     for<'a> &'a T: Add<&'a T, Output = T>,
 {
-    fn get_start_state(&self) -> T {
+    type Input = T;
+    type Output = T;
+    type State = T;
+
+    fn get_start_state(&self) -> Self::State {
         self.initial_value.clone()
     }
 
-    fn get_next_state(&self, state: &T, input: &T) -> (T, T) {
+    fn get_next_state(
+        &self,
+        state: &Self::State,
+        input: &Self::Input,
+    ) -> (Self::State, Self::Output) {
         (state + input, state + input)
     }
 }
@@ -28,7 +36,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::state_machine::{Transition, get_trajectory, run};
+    use crate::state_machines::{Transition, get_trajectory, run};
 
     #[test]
     fn run_with_example_inputs() {

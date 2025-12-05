@@ -1,7 +1,11 @@
 mod accumulator;
 mod state_estimator;
-mod stochastic;
+mod state_machine;
+mod stochastic_machine;
+mod stochastic_model;
 
 pub use accumulator::*;
 pub use state_estimator::*;
-pub use stochastic::*;
+pub use state_machine::*;
+pub use stochastic_machine::*;
+pub use stochastic_model::*;

@@ -1,51 +1,54 @@
 use crate::{
-    discrete_distribution::DiscreteDistribution, state_machine::StateMachine,
-    state_machines::Stochastic,
+    distributions::Discrete, state_machines::StateMachine,
+    state_machines::StochasticModel,
 };
 use std::hash::Hash;
 
-pub struct StateEstimator<I, O, S>
+pub struct StateEstimator<I, O, S, M>
 where
-    I: Copy + Eq + Hash,
-    O: Copy + Eq + Hash,
-    S: Copy + Eq + Hash,
+    O: Clone + Eq + Hash,
+    S: Clone + Eq + Hash,
+    M: StochasticModel<Input = I, Output = O, State = S>,
 {
-    state_machine: Stochastic<I, O, S>,
+    model: M,
 }
 
-impl<I, O, S> StateEstimator<I, O, S>
+impl<I, O, S, M> StateEstimator<I, O, S, M>
 where
-    I: Copy + Eq + Hash,
-    O: Copy + Eq + Hash,
-    S: Copy + Eq + Hash,
+    O: Clone + Eq + Hash,
+    S: Clone + Eq + Hash,
+    M: StochasticModel<Input = I, Output = O, State = S>,
 {
-    pub fn new(state_machine: Stochastic<I, O, S>) -> StateEstimator<I, O, S> {
-        StateEstimator { state_machine }
+    pub fn new(model: M) -> StateEstimator<I, O, S, M> {
+        StateEstimator { model }
     }
 }
 
-impl<I, O, S>
-    StateMachine<(I, O), DiscreteDistribution<S>, DiscreteDistribution<S>>
-    for StateEstimator<I, O, S>
+impl<I, O, S, M> StateMachine for StateEstimator<I, O, S, M>
 where
-    I: Copy + Eq + Hash,
-    O: Copy + Eq + Hash,
-    S: Copy + Eq + Hash,
+    O: Clone + Eq + Hash,
+    S: Clone + Eq + Hash,
+    M: StochasticModel<Input = I, Output = O, State = S>,
 {
-    fn get_start_state(&self) -> DiscreteDistribution<S> {
-        self.state_machine.initial_state().clone()
+    type Input = (I, O);
+    type Output = Discrete<S>;
+    type State = Discrete<S>;
+
+    fn get_start_state(&self) -> Self::State {
+        self.model.initial_state()
     }
 
     fn get_next_state(
         &self,
-        state: &DiscreteDistribution<S>,
-        (action, observed): &(I, O),
-    ) -> (DiscreteDistribution<S>, DiscreteDistribution<S>) {
-        let estimated_state =
-            state.bayes(self.state_machine.observation(), observed);
-        let next_state = estimated_state
-            .marginalize(|event| (*event, *action))
-            .total_probability(self.state_machine.transition());
+        state: &Self::State,
+        (action, observed): &Self::Input,
+    ) -> (Self::State, Self::Output) {
+        let observation = self.model.observation();
+        let transition = self.model.transition(action);
+
+        let estimated_state = observation.bayesian_evidence(state, observed);
+        let next_state = transition.total_probability(&estimated_state);
+
         (next_state, estimated_state)
     }
 }
