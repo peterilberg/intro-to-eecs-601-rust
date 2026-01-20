@@ -24,13 +24,12 @@ where
     }
 }
 
-impl<I, O, S, M> StateMachine for StateEstimator<I, O, S, M>
+impl<I, O, S, M> StateMachine<(I, O)> for StateEstimator<I, O, S, M>
 where
     O: Clone + Eq + Hash,
     S: Clone + Eq + Hash,
     M: StochasticModel<Input = I, Output = O, State = S>,
 {
-    type Input = (I, O);
     type Output = Discrete<S>;
     type State = Discrete<S>;
 
@@ -41,7 +40,7 @@ where
     fn get_next_state(
         &self,
         state: &Self::State,
-        (action, observed): &Self::Input,
+        (action, observed): &(I, O),
     ) -> (Self::State, Self::Output) {
         let observation = self.model.observation();
         let transition = self.model.transition(action);

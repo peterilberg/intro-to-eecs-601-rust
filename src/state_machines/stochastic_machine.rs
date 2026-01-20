@@ -21,13 +21,12 @@ where
     }
 }
 
-impl<I, O, S, M> StateMachine for StochasticMachine<I, O, S, M>
+impl<I, O, S, M> StateMachine<I> for StochasticMachine<I, O, S, M>
 where
     O: Clone + Eq + Hash,
     S: Clone + Eq + Hash,
     M: StochasticModel<Input = I, Output = O, State = S>,
 {
-    type Input = I;
     type Output = O;
     type State = S;
 
@@ -38,7 +37,7 @@ where
     fn get_next_state(
         &self,
         state: &Self::State,
-        input: &Self::Input,
+        input: &I,
     ) -> (Self::State, Self::Output) {
         let output = self.model.observation().when(state).draw();
         let next_state = self.model.transition(input).when(state).draw();
