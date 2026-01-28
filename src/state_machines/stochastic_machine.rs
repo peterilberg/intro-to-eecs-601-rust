@@ -39,8 +39,11 @@ where
         state: &Self::State,
         input: &I,
     ) -> (Self::State, Self::Output) {
-        let output = self.model.observation().when(state).draw();
-        let next_state = self.model.transition(input).when(state).draw();
+        let observation = self.model.observation()(state);
+        let transition = self.model.transition(input)(state);
+
+        let output = observation.draw();
+        let next_state = transition.draw();
 
         (next_state.clone(), output.clone())
     }

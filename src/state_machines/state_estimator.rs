@@ -1,5 +1,6 @@
 use crate::{
-    distributions::Discrete, state_machines::StateMachine,
+    distributions::Discrete, distributions::bayesian_evidence,
+    distributions::total_probability, state_machines::StateMachine,
     state_machines::StochasticModel,
 };
 use std::hash::Hash;
@@ -45,8 +46,8 @@ where
         let observation = self.model.observation();
         let transition = self.model.transition(action);
 
-        let estimated_state = observation.bayesian_evidence(state, observed);
-        let next_state = transition.total_probability(&estimated_state);
+        let estimated_state = bayesian_evidence(observation, state, observed);
+        let next_state = total_probability(transition, &estimated_state);
 
         (next_state, estimated_state)
     }

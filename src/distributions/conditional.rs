@@ -1,45 +1,55 @@
 use crate::distributions::Discrete;
 use core::hash::Hash;
 
-pub trait Conditional {
-    type Given: Clone + Eq + Hash;
-    type Event: Clone + Eq + Hash;
+pub type Conditional<Given, Event> = dyn Fn(&Given) -> Discrete<Event>;
 
-    fn when(&self, given: &Self::Given) -> &Discrete<Self::Event>;
-
-    fn join(
-        &self,
-        distribution: &Discrete<Self::Given>,
-    ) -> Discrete<(Self::Given, Self::Event)> {
-        let joint_events = distribution.support().flat_map(|given| {
-            let condition = distribution.probability(given);
-            let conditioned = self.when(given);
-            conditioned.support().map(move |event| {
+pub fn join<Given, Event>(
+    conditional: &Conditional<Given, Event>,
+    distribution: &Discrete<Given>,
+) -> Discrete<(Given, Event)>
+where
+    Given: Clone + Eq + Hash,
+    Event: Clone + Eq + Hash,
+{
+    let joint_events = distribution.support().flat_map(|given| {
+        let condition = distribution.probability(given);
+        let conditioned = conditional(given);
+        conditioned
+            .support()
+            .map(|event| {
                 (
                     (given.clone(), event.clone()),
                     (condition * conditioned.probability(event)),
                 )
             })
-        });
-        Discrete::from_iter(joint_events)
-    }
+            .collect::<Vec<_>>()
+    });
+    Discrete::from_iter(joint_events)
+}
 
-    fn bayesian_evidence(
-        &self,
-        prior: &Discrete<Self::Given>,
-        evidence: &Self::Event,
-    ) -> Discrete<Self::Given> {
-        self.join(prior)
-            .condition(|(_, event)| event == evidence)
-            .marginalize(|(event, _)| event.clone())
-    }
+pub fn bayesian_evidence<Given, Event>(
+    conditional: &Conditional<Given, Event>,
+    prior: &Discrete<Given>,
+    evidence: &Event,
+) -> Discrete<Given>
+where
+    Given: Clone + Eq + Hash,
+    Event: Clone + Eq + Hash,
+{
+    join(conditional, prior)
+        .condition(|(_, event)| event == evidence)
+        .marginalize(|(event, _)| event.clone())
+}
 
-    fn total_probability(
-        &self,
-        prior: &Discrete<Self::Given>,
-    ) -> Discrete<Self::Event> {
-        self.join(prior).marginalize(|(_, event)| event.clone())
-    }
+pub fn total_probability<Given, Event>(
+    conditional: &Conditional<Given, Event>,
+    prior: &Discrete<Given>,
+) -> Discrete<Event>
+where
+    Given: Clone + Eq + Hash,
+    Event: Clone + Eq + Hash,
+{
+    join(conditional, prior).marginalize(|(_, event)| event.clone())
 }
 
 #[cfg(test)]
@@ -50,13 +60,13 @@ mod tests {
     #[test]
     fn distribution_for_event_a1() {
         let expected = Discrete::from([("b1", 0.7), ("b2", 0.3)]);
-        assert_eq!(distribution_b_given_a().when(&"a1"), &expected);
+        assert_eq!(distribution_b_given_a(&"a1"), expected);
     }
 
     #[test]
     fn distribution_for_event_a2() {
         let expected = Discrete::from([("b1", 0.2), ("b2", 0.8)]);
-        assert_eq!(distribution_b_given_a().when(&"a2"), &expected);
+        assert_eq!(distribution_b_given_a(&"a2"), expected);
     }
 
     #[test]
@@ -75,8 +85,11 @@ mod tests {
     #[test]
     fn bayesian_evidence_for_positive_test() {
         assert_eq!(
-            distribution_test_given_disease()
-                .bayesian_evidence(&distribution_disease(), &Test::Positive),
+            bayesian_evidence(
+                &distribution_test_given_disease,
+                &distribution_disease(),
+                &Test::Positive
+            ),
             Discrete::from(
                 [(Disease::Sick, 0.497), (Disease::Healthy, 0.502),]
             )
@@ -84,10 +97,12 @@ mod tests {
     }
 
     #[test]
-    fn total_probability() {
+    fn total_probability_for_test() {
         assert_eq!(
-            distribution_test_given_disease()
-                .total_probability(&distribution_disease()),
+            total_probability(
+                &distribution_test_given_disease,
+                &distribution_disease()
+            ),
             Discrete::from([(Test::Positive, 0.002), (Test::Negative, 0.998),])
         )
     }
@@ -99,33 +114,16 @@ mod tests {
         Discrete::from([("a1", 0.9), ("a2", 0.1)])
     }
 
-    fn distribution_b_given_a() -> BGivenA {
-        BGivenA {
-            distribution_a1: Discrete::from([("b1", 0.7), ("b2", 0.3)]),
-            distribution_a2: Discrete::from([("b1", 0.2), ("b2", 0.8)]),
+    fn distribution_b_given_a(given: &A) -> Discrete<B> {
+        if *given == "a1" {
+            Discrete::from([("b1", 0.7), ("b2", 0.3)])
+        } else {
+            Discrete::from([("b1", 0.2), ("b2", 0.8)])
         }
     }
 
     fn distribution_a_and_b() -> Discrete<(A, B)> {
-        distribution_b_given_a().join(&distribution_a())
-    }
-
-    struct BGivenA {
-        distribution_a1: Discrete<B>,
-        distribution_a2: Discrete<B>,
-    }
-
-    impl Conditional for BGivenA {
-        type Given = A;
-        type Event = B;
-
-        fn when(&self, given: &Self::Given) -> &Discrete<Self::Event> {
-            if *given == "a1" {
-                &self.distribution_a1
-            } else {
-                &self.distribution_a2
-            }
-        }
+        join(&distribution_b_given_a, &distribution_a())
     }
 
     #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -144,33 +142,16 @@ mod tests {
         Discrete::from([(Disease::Sick, 0.001), (Disease::Healthy, 0.999)])
     }
 
-    fn distribution_test_given_disease() -> TestGivenDisease {
-        TestGivenDisease {
-            sick: Discrete::from([
+    fn distribution_test_given_disease(given: &Disease) -> Discrete<Test> {
+        match *given {
+            Disease::Sick => Discrete::from([
                 (Test::Positive, 0.990),
                 (Test::Negative, 0.010),
             ]),
-            healthy: Discrete::from([
+            Disease::Healthy => Discrete::from([
                 (Test::Positive, 0.001),
                 (Test::Negative, 0.999),
             ]),
-        }
-    }
-
-    struct TestGivenDisease {
-        sick: Discrete<Test>,
-        healthy: Discrete<Test>,
-    }
-
-    impl Conditional for TestGivenDisease {
-        type Given = Disease;
-        type Event = Test;
-
-        fn when(&self, given: &Self::Given) -> &Discrete<Self::Event> {
-            match *given {
-                Disease::Sick => &self.sick,
-                Disease::Healthy => &self.healthy,
-            }
         }
     }
 }

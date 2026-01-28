@@ -3,9 +3,9 @@ use std::hash::Hash;
 
 pub type StochasticStateModel<State> = Discrete<State>;
 pub type StochasticTransitionModel<'model, State> =
-    &'model dyn Conditional<Given = State, Event = State>;
+    &'model Conditional<State, State>;
 pub type StochasticObservationModel<'model, State, Output> =
-    &'model dyn Conditional<Given = State, Event = Output>;
+    &'model Conditional<State, Output>;
 
 pub trait StochasticModel {
     type Input;
