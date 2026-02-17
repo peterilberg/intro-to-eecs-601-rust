@@ -53,13 +53,13 @@ where
     O: Display,
     S: Display,
 {
-    let mut exeuction = Execution::new(state_machine);
-    println!("Start state: {}", exeuction.current_state);
+    let mut execution = Execution::new(state_machine);
+    println!("Start state: {}", execution.current_state);
 
     inputs.iter().enumerate().map(move |(i, input)| {
-        let output = exeuction.step(input);
+        let output = execution.step(input);
         print!("{i}: input {input} produces {output}");
-        println!(" with new state: {}", exeuction.current_state);
+        println!(" with new state: {}", execution.current_state);
         output
     })
 }
