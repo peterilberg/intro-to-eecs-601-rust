@@ -1,8 +1,13 @@
+//! A square probability distribution.
+
 use crate::distributions::Discrete;
 
+/// A square probability between a lower and an upper limit.
 pub struct Square {}
 
 impl Square {
+    /// Create a new square probability distribution between a lower
+    /// and an upper limit. All events have the same probability.
     pub fn with(low: i32, high: i32) -> Discrete<i32> {
         assert!(low < high, "Lower bound must be less than upper bound.");
 

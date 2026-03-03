@@ -1,13 +1,18 @@
+//! Discrete probability distributions.
+
 use rand::Rng;
 use std::collections::HashMap;
 use std::hash::Hash;
 
+/// A discrete probability distribution consists of a set of events and their
+/// probabilities.
 #[derive(Debug)]
 pub struct Discrete<Event> {
     distribution: HashMap<Event, f64>,
 }
 
 impl<Event> Discrete<Event> {
+    /// The `support` of a discrete distribution is its set of events.
     pub fn support<'a>(&'a self) -> impl Iterator<Item = &'a Event>
     where
         Event: 'a,
@@ -15,6 +20,8 @@ impl<Event> Discrete<Event> {
         self.distribution.keys()
     }
 
+    /// Marginalize a distribution by converting the original events to
+    /// new events and combining their respective probabilities.
     pub fn marginalize<NewEvent, Conversion>(
         &self,
         convert: Conversion,
@@ -32,6 +39,8 @@ impl<Event> Discrete<Event> {
         Discrete::build(distribution)
     }
 
+    /// Build a probability distribution. Ensure that the probabilities
+    /// sum to 1.
     fn build(events: HashMap<Event, f64>) -> Discrete<Event> {
         assert_ne!(
             0,
@@ -60,10 +69,12 @@ impl<Event> Discrete<Event>
 where
     Event: Eq + Hash,
 {
+    /// Get the probability of an event.
     pub fn probability(&self, event: &Event) -> f64 {
         self.distribution.get(event).copied().unwrap_or(0.0)
     }
 
+    /// Randomly draw an event from the distribution.
     pub fn draw(&self) -> &Event {
         let number: f64 = rand::rng().random_range(0.0..=1.0);
         let mut sum = 0.0;
@@ -82,6 +93,8 @@ impl<Event> Discrete<Event>
 where
     Event: Clone + Eq + Hash,
 {
+    /// Condition a distribution to an event. `filter` specifies the
+    /// events that you are conditioning for.
     pub fn condition<Filter>(&self, filter: Filter) -> Discrete<Event>
     where
         Filter: FnMut(&&Event) -> bool,
@@ -100,6 +113,7 @@ impl<Event, const N: usize> From<[(Event, f64); N]> for Discrete<Event>
 where
     Event: Eq + Hash,
 {
+    /// Convert an array of events to a discrete probability distribution.
     fn from(events: [(Event, f64); N]) -> Self {
         Self::build(HashMap::from(events))
     }
@@ -109,6 +123,7 @@ impl<Event> FromIterator<(Event, f64)> for Discrete<Event>
 where
     Event: Eq + Hash,
 {
+    /// Convert an iterator of events to a discrete probability distribution.
     fn from_iter<Iterator>(events: Iterator) -> Self
     where
         Iterator: IntoIterator<Item = (Event, f64)>,
@@ -121,6 +136,7 @@ impl<Event> PartialEq for Discrete<Event>
 where
     Event: Eq + Hash,
 {
+    /// Compare two discrete distributions.
     fn eq(&self, other: &Self) -> bool {
         if self.support().count() != other.support().count() {
             return false;

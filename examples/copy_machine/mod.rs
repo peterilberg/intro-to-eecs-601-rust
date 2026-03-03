@@ -1,25 +1,30 @@
+//! A stochastic model describing a copy machine.
+
 use intro_to_ee_and_cs::distributions::Discrete;
 use intro_to_ee_and_cs::state_machines::{
     StochasticModel, StochasticObservationModel, StochasticStateModel,
     StochasticTransitionModel,
 };
 
+/// Actions that you can perform on the copy machine.
 #[derive(Clone, Copy, Debug)]
 pub enum Input {
-    Copy,
+    Copy, // Make a copy.
 }
 
+/// Observations on the operation of the copy machine.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum Output {
-    Perfect,
-    Smudged,
-    Black,
+    Perfect, // A perfect copy.
+    Smudged, // A smudged copy.
+    Black,   // A completely useless copy.
 }
 
+/// Estimated state of the copy machine.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum State {
-    Good,
-    Bad,
+    Good, // Everything is fine.
+    Bad,  // Needs repair.
 }
 
 struct Model {}
@@ -67,6 +72,7 @@ impl StochasticModel for Model {
     }
 }
 
+/// Create a new stochastic model describing a copy machine.
 pub fn copy_machine_model()
 -> impl StochasticModel<Input = Input, Output = Output, State = State> {
     Model {}

@@ -1,11 +1,15 @@
+//! An accumulator state machine.
+
 use crate::state_machines::StateMachine;
 use std::ops::Add;
 
+/// An accumulator state machine.
 pub struct Accumulator<T> {
     initial_value: T,
 }
 
 impl<T> Accumulator<T> {
+    /// Create a new accumulator state machine with an initial value.
     pub fn new(initial_value: T) -> Accumulator<T> {
         Accumulator { initial_value }
     }
@@ -19,10 +23,13 @@ where
     type Output = T;
     type State = T;
 
+    /// The start state of an accumulator is the initial value.
     fn get_start_state(&self) -> Self::State {
         self.initial_value.clone()
     }
 
+    /// The next state of an accumulator is the sum of the current
+    /// state and the input.
     fn get_next_state(
         &self,
         state: &Self::State,

@@ -1,9 +1,14 @@
+//! A uniform probability distributions.
+
 use crate::distributions::Discrete;
 use std::hash::Hash;
 
+/// A uniformly distributed probability distribution.
 pub struct Uniform {}
 
 impl Uniform {
+    /// Create a new probability distribution where all events have the
+    /// same probability.
     pub fn with<Event>(events: &[Event]) -> Discrete<Event>
     where
         Event: Clone + Eq + Hash,

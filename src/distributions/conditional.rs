@@ -1,8 +1,15 @@
+//! Conditional discrete probability distributions.
+
 use crate::distributions::Discrete;
 use core::hash::Hash;
 
+/// A conditional discrete probability distribution depends on a given
+/// condition (event). We model it as a function from the condition
+/// to the dependent discrete distribution.
 pub type Conditional<Given, Event> = dyn Fn(&Given) -> Discrete<Event>;
 
+/// Create a joint probability distribution from a conditional probability
+/// distribution and a discrete probability distribution over the conditions.
 pub fn join<Given, Event>(
     conditional: &Conditional<Given, Event>,
     distribution: &Discrete<Given>,
@@ -27,6 +34,10 @@ where
     Discrete::from_iter(joint_events)
 }
 
+/// Perform Bayesian reasoning. Given a conditional probability distribution,t
+/// a prior distribution for the conditions, and an observation (evidence),
+/// calculate the posterior distribution. That is, form the joint distribution,
+/// condition it by the observation, and marginalize it to the conditions.
 pub fn bayesian_evidence<Given, Event>(
     conditional: &Conditional<Given, Event>,
     prior: &Discrete<Given>,
@@ -41,6 +52,9 @@ where
         .marginalize(|(event, _)| event.clone())
 }
 
+/// Calculate the total probability of a conditional probability distribution
+/// given a prior distribution. That is, form the joint distribution, and
+/// marginalize it to the target events.
 pub fn total_probability<Given, Event>(
     conditional: &Conditional<Given, Event>,
     prior: &Discrete<Given>,

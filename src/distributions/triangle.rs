@@ -1,8 +1,13 @@
+//! A triangular probability distribution.
+
 use crate::distributions::Discrete;
 
+/// A triangular probability distribution with a peak and two symmetric wings.
 pub struct Triangle {}
 
 impl Triangle {
+    /// Create a new triangular probability distribution with a central peak
+    /// and two symmetric wings.
     pub fn with(peak: i32, half_width: usize) -> Discrete<i32> {
         let mut events = Vec::with_capacity(1 + 2 * half_width);
 

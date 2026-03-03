@@ -1,8 +1,15 @@
+//! A mixed probability distribution.
+
 use crate::distributions::Discrete;
 
+/// A mix of two discrete probability distribution.
 pub struct Mixed {}
 
 impl Mixed {
+    /// Mix two discrete probability distributions `a` and `b`. The `mix`
+    /// factor determines the relative weight of the distributions:
+    ///
+    /// `mix` * probability of `a` + (1 - `mix`) * probability of `b`
     pub fn with(mix: f64, a: Discrete<i32>, b: Discrete<i32>) -> Discrete<i32> {
         assert!(
             (0.0..=1.0).contains(&mix),

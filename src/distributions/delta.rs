@@ -1,9 +1,13 @@
+//! A delta discrete probability distribution.
+
 use crate::distributions::Discrete;
 use std::hash::Hash;
 
+/// A discrete probability distributions with a single event of probability 1.
 pub struct Delta {}
 
 impl Delta {
+    /// Create a new delta distribution with a single event.
     pub fn with<Event>(event: Event) -> Discrete<Event>
     where
         Event: Eq + Hash,

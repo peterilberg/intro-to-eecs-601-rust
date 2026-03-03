@@ -1,6 +1,9 @@
+//! Stochastic state machines.
+
 use crate::{state_machines::StateMachine, state_machines::StochasticModel};
 use std::hash::Hash;
 
+/// A stochastic state machine.
 pub struct StochasticMachine<I, O, S, M>
 where
     O: Clone + Eq + Hash,
@@ -16,6 +19,7 @@ where
     S: Clone + Eq + Hash,
     M: StochasticModel<Input = I, Output = O, State = S>,
 {
+    /// Create a new stochastic state machine from a stochastic model.
     pub fn new(model: M) -> StochasticMachine<I, O, S, M> {
         StochasticMachine { model }
     }
@@ -30,10 +34,15 @@ where
     type Output = O;
     type State = S;
 
+    /// The start state is randomly drawn from the stochastic model's
+    /// initial state distribution.
     fn get_start_state(&self) -> Self::State {
         self.model.initial_state().draw().clone()
     }
 
+    /// The next state and the corresponding output and randomly drawn
+    /// from the stochasstic model's transition and observation
+    /// distributions based on the old state and the `input`.
     fn get_next_state(
         &self,
         state: &Self::State,
