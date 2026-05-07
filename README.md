@@ -7,3 +7,16 @@ Computer Science I"](https://ocw.mit.edu/courses/6-01sc-introduction-to-electric
 The course explains concepts such as state machines and probability with
 accompanying Python code and exercises. I have reimplemented some of the
 projects in Rust as an exercise.
+
+## Building
+
+    cargo build
+    cargo test
+
+## Use
+
+Look at the tests and the example programs:
+
+    cargo run --example accumulator
+    cargo run --example stochastic
+    cargo run --example state_estimator
